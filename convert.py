@@ -1,7 +1,7 @@
 """يقرأ ملف الإكسل (شيت HOM) ويطلّع data.json للداشبورد.
 الاستخدام:  python convert.py "مسار ملف الإكسل.xlsx" data.json
 """
-import sys, json, datetime as dt
+import sys, os, json, datetime as dt
 import openpyxl, pandas as pd
 
 src = sys.argv[1]
@@ -67,7 +67,7 @@ downs = [dict(p=r["project"], m=r["m"], date=r["تاريخ السداد"].strfti
          for _, r in c.iterrows()]
 pend = df[(df["نوع الدفعة"] == "مقدم تعاقد") & (df["المتبقى"] > 0)]["المتبقى"].sum()
 
-json.dump(dict(updated=dt.datetime.now().strftime("%Y-%m-%d %H:%M"), installments=installments, due=due,
+json.dump(dict(updated=(open("modified.txt").read().strip() if os.path.exists("modified.txt") else dt.datetime.fromtimestamp(os.path.getmtime(src)).strftime("%Y-%m-%d %H:%M")), installments=installments, due=due,
                sales=sales, downs=downs, downs_pending=float(pend)),
           open(out, "w", encoding="utf-8"), ensure_ascii=False)
 print("OK", len(installments), len(sales), len(downs), "->", out)
