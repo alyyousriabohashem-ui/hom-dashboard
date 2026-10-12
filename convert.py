@@ -8,7 +8,7 @@ src = sys.argv[1]
 out = sys.argv[2] if len(sys.argv) > 2 else "data.json"
 
 wb = openpyxl.load_workbook(src, data_only=True, read_only=True)
-SHEETS = [("HOM", "هوم"), ("HOM 36 ", "A36")]
+SHEETS = [("HOM", "هوم")]   # مشروع هوم فقط
 frames = []
 for sh, pname in SHEETS:
     rows = list(wb[sh].iter_rows(min_row=3, values_only=True, max_col=37))
@@ -25,8 +25,11 @@ for c in ["المحصل", "المتبقى", "القيمة", "اجمالى الو
 
 def ym(s): return s.dt.strftime("%Y-%m")
 def clean(v): return None if pd.isna(v) else v
+def is_zero(v):   # نظام 0% (القيمة الرقمية صفر) وليس النص "صفر%"
+    return (not isinstance(v, str)) and pd.notna(v) and v == 0
 def system(v):
-    if v is None or pd.isna(v) or v == 0: return "بدون"
+    if v is None or pd.isna(v): return "بدون"
+    if is_zero(v): return "0%"
     if isinstance(v, str): return v.strip()
     return f"{v*100:g}%" if v < 1 else f"{v:g}%"
 
@@ -44,12 +47,13 @@ for _, r in a.iterrows():
     installments.append(dict(p=r["project"], m=r["m"], date=r["تاريخ السداد"].strftime("%Y-%m-%d"), unit=clean(r["عمارة شقة"]),
         kind=r["نوع الدفعة"], method=clean(r["نوع السداد"]) or "-",
         bank=(clean(r["البنك المحصل به"]) or "غير محدد").strip(),
-        zero=str(r["نظام التعاقد"]).strip() == "صفر%", amount=float(r["المحصل"])))
+        zero=is_zero(r["نظام التعاقد"]), amount=float(r["المحصل"])))
 
 # المستحق (المتبقي) لكل شهر استحقاق - للتوقع
 d = df[df["نوع الدفعة"].isin(inst_types) & (df["المتبقى"] > 0) & df["تاريخ الشيك"].notna()].copy()
 d["m"] = ym(d["تاريخ الشيك"])
-due = [dict(p=p, m=m, v=round(float(v), 2)) for (p, m), v in d.groupby(["project", "m"])["المتبقى"].sum().items()]
+rem = [dict(m=r["m"], d=r["تاريخ الشيك"].strftime("%Y-%m-%d"), u=clean(r["عمارة شقة"]), k=r["نوع الدفعة"],
+            t=clean(r["نوع السداد"]) or "-", a=round(float(r["المتبقى"]), 2)) for _, r in d.iterrows()]
 
 # ---- 2) المبيعات (حسب تاريخ التعاقد)
 s = df[(df["نوع الدفعة"] == "اجمالي الوحده") & df["تاريخ التعاقد"].notna()].copy()
@@ -67,7 +71,7 @@ downs = [dict(p=r["project"], m=r["m"], date=r["تاريخ السداد"].strfti
          for _, r in c.iterrows()]
 pend = df[(df["نوع الدفعة"] == "مقدم تعاقد") & (df["المتبقى"] > 0)]["المتبقى"].sum()
 
-json.dump(dict(updated=(open("modified.txt").read().strip() if os.path.exists("modified.txt") else dt.datetime.fromtimestamp(os.path.getmtime(src)).strftime("%Y-%m-%d %H:%M")), installments=installments, due=due,
+json.dump(dict(updated=(open("modified.txt").read().strip() if os.path.exists("modified.txt") else dt.datetime.fromtimestamp(os.path.getmtime(src)).strftime("%Y-%m-%d %H:%M")), installments=installments, rem=rem,
                sales=sales, downs=downs, downs_pending=float(pend)),
           open(out, "w", encoding="utf-8"), ensure_ascii=False)
 print("OK", len(installments), len(sales), len(downs), "->", out)
