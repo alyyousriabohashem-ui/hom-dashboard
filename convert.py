@@ -20,7 +20,7 @@ df = pd.concat(frames, ignore_index=True)
 
 for c in ["تاريخ السداد", "تاريخ التعاقد", "تاريخ الشيك"]:
     df[c] = pd.to_datetime(df[c], errors="coerce")
-for c in ["المحصل", "المتبقى", "القيمة", "اجمالى الوحدة", "دفعه التعاقد", "مساحه الوحده"]:
+for c in ["المحصل", "المتبقى", "القيمة", "اجمالى الوحدة", "دفعه التعاقد", "مساحه الوحده", "مساحه الحديقه"]:
     df[c] = pd.to_numeric(df[c], errors="coerce")
 
 def ym(s): return s.dt.strftime("%Y-%m")
@@ -60,7 +60,7 @@ s = df[(df["نوع الدفعة"] == "اجمالي الوحده") & df["تاري
 s["m"] = ym(s["تاريخ التعاقد"])
 sales = [dict(p=r["project"], m=r["m"], date=r["تاريخ التعاقد"].strftime("%Y-%m-%d"), unit=clean(r["عمارة شقة"]),
               building=clean(r["عمارة"]), system=system(r["نظام التعاقد"]),
-              area=clean(r["مساحه الوحده"]), value=float(r["اجمالى الوحدة"] or 0))
+              area=clean(r["مساحه الوحده"]), garden=clean(r["مساحه الحديقه"]), value=float(r["اجمالى الوحدة"] or 0))
          for _, r in s.iterrows()]
 
 # ---- 3) دفعات التعاقد (حسب تاريخ السداد)
