@@ -213,7 +213,8 @@ function render(){
         ["متوسط قيمة الوحدة",fmt(cur.length?tot/cur.length:0)+" ج.م"],["مساحة الوحدات (م²)",fmt(area)],["مساحة الحديقة (م²)",fmt(gar)],
         ["متوسط سعر المتر",fmt(area?tot/area:0)+" ج.م"],
         ["جراجات منفصلة – العدد",fmt(gSep.length)],["جراجات منفصلة – إجمالي القيمة",fmt(gSepV)+" ج.م"],
-        ["جراجات موزعة على الأقساط",fmt(gDist.length)],["إجمالي الجراجات المباعة (العدد)",fmt(gSep.length+gDist.length)]])+
+        ["جراجات موزعة على الأقساط – العدد",fmt(gDist.length)],["جراجات موزعة – القيمة (100 ألف للوحدة)",fmt(sum(gDist,x=>x.gv))+" ج.م"],
+        ["إجمالي الجراجات المباعة (العدد)",fmt(gSep.length+gDist.length)],["إجمالي قيمة الجراجات",fmt(gSepV+sum(gDist,x=>x.gv))+" ج.م"]])+
       `<div class="grid"><div class="card"><h3>المبيعات شهريًا (اضغط على عمود لتصفية الشهر)</h3><div class="cv"><canvas id="c1"></canvas></div></div>
        <div class="card"><h3>حسب نظام التعاقد – ${title}</h3><div class="cv"><canvas id="c2"></canvas></div></div></div>
        <div class="card"><h3>الوحدات – ${title}</h3>${table([["تاريخ التعاقد",r=>r.date],["الوحدة",r=>r.unit||"-"],["النظام",r=>r.system],["مساحة الوحدة",r=>r.area??"-"],["مساحة الحديقة",r=>r.garden??"-"],["سعر المتر",r=>r.area?fmt(r.value/r.area):"-","n"],["القيمة",r=>fmt(r.value),"n"]],byDate(cur,"date"))}</div>`;

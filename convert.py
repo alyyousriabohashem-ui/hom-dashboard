@@ -66,7 +66,8 @@ def garage_kind(r):
     n = str(r["الملاحظات"]) if pd.notna(r["الملاحظات"]) else ""
     if "الجراج موزع" in n or "شامل 100 الف جراج" in n: return "dist"
     return None
-sales = [dict(gk=garage_kind(r), gv=float(gv.get(r["عمارة شقة"], 0)), p=r["project"], m=r["m"], date=r["تاريخ التعاقد"].strftime("%Y-%m-%d"), unit=clean(r["عمارة شقة"]),
+DIST_PRICE = 100000   # قيمة الجراج الموزع على الأقساط (افتراض: 100 ألف للوحدة)
+sales = [dict(gk=garage_kind(r), gv=float(gv.get(r["عمارة شقة"], DIST_PRICE if garage_kind(r) == "dist" else 0)), p=r["project"], m=r["m"], date=r["تاريخ التعاقد"].strftime("%Y-%m-%d"), unit=clean(r["عمارة شقة"]),
               building=clean(r["عمارة"]), system=system(r["نظام التعاقد"]),
               area=clean(r["مساحه الوحده"]), garden=clean(r["مساحه الحديقه"]), value=float(r["اجمالى الوحدة"] or 0))
          for _, r in s.iterrows()]
