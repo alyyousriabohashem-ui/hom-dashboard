@@ -58,7 +58,15 @@ rem = [dict(m=r["m"], d=r["تاريخ الشيك"].strftime("%Y-%m-%d"), u=clean
 # ---- 2) المبيعات (حسب تاريخ التعاقد)
 s = df[(df["نوع الدفعة"] == "اجمالي الوحده") & df["تاريخ التعاقد"].notna()].copy()
 s["m"] = ym(s["تاريخ التعاقد"])
-sales = [dict(p=r["project"], m=r["m"], date=r["تاريخ التعاقد"].strftime("%Y-%m-%d"), unit=clean(r["عمارة شقة"]),
+# الجراجات: (1) منفصلة = وحدات لها دفعات "جراج" -> القيمة = مجموع قيمة دفعات الجراج
+#           (2) موزعة على الأقساط = مذكورة في الملاحظات على صف اجمالي الوحدة
+gv = df[df["نوع الدفعة"] == "جراج"].groupby("عمارة شقة")["القيمة"].sum().to_dict()
+def garage_kind(r):
+    if r["عمارة شقة"] in gv: return "sep"
+    n = str(r["الملاحظات"]) if pd.notna(r["الملاحظات"]) else ""
+    if "الجراج موزع" in n or "شامل 100 الف جراج" in n: return "dist"
+    return None
+sales = [dict(gk=garage_kind(r), gv=float(gv.get(r["عمارة شقة"], 0)), p=r["project"], m=r["m"], date=r["تاريخ التعاقد"].strftime("%Y-%m-%d"), unit=clean(r["عمارة شقة"]),
               building=clean(r["عمارة"]), system=system(r["نظام التعاقد"]),
               area=clean(r["مساحه الوحده"]), garden=clean(r["مساحه الحديقه"]), value=float(r["اجمالى الوحدة"] or 0))
          for _, r in s.iterrows()]

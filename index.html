@@ -207,10 +207,13 @@ function render(){
   if(tab==="sales"){
     const all=D.sales,cur=pick(all),tot=sum(cur,x=>x.value);
     const area=sum(cur,x=>x.area||0),gar=sum(cur,x=>x.garden||0);
+    const gSep=cur.filter(x=>x.gk==="sep"),gDist=cur.filter(x=>x.gk==="dist"),gSepV=sum(gSep,x=>x.gv);
     const byM=group(all,"m",x=>x.value);
     V.innerHTML=kpis([["إجمالي المبيعات – "+title,fmt(tot)+" ج.م"],["عدد الوحدات المباعة",fmt(cur.length)],
         ["متوسط قيمة الوحدة",fmt(cur.length?tot/cur.length:0)+" ج.م"],["مساحة الوحدات (م²)",fmt(area)],["مساحة الحديقة (م²)",fmt(gar)],
-        ["متوسط سعر المتر",fmt(area?tot/area:0)+" ج.م"]])+
+        ["متوسط سعر المتر",fmt(area?tot/area:0)+" ج.م"],
+        ["جراجات منفصلة – العدد",fmt(gSep.length)],["جراجات منفصلة – إجمالي القيمة",fmt(gSepV)+" ج.م"],
+        ["جراجات موزعة على الأقساط",fmt(gDist.length)],["إجمالي الجراجات المباعة (العدد)",fmt(gSep.length+gDist.length)]])+
       `<div class="grid"><div class="card"><h3>المبيعات شهريًا (اضغط على عمود لتصفية الشهر)</h3><div class="cv"><canvas id="c1"></canvas></div></div>
        <div class="card"><h3>حسب نظام التعاقد – ${title}</h3><div class="cv"><canvas id="c2"></canvas></div></div></div>
        <div class="card"><h3>الوحدات – ${title}</h3>${table([["تاريخ التعاقد",r=>r.date],["الوحدة",r=>r.unit||"-"],["النظام",r=>r.system],["مساحة الوحدة",r=>r.area??"-"],["مساحة الحديقة",r=>r.garden??"-"],["سعر المتر",r=>r.area?fmt(r.value/r.area):"-","n"],["القيمة",r=>fmt(r.value),"n"]],byDate(cur,"date"))}</div>`;
