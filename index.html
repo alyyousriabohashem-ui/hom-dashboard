@@ -18,6 +18,7 @@ h1{font-size:22px;margin:0}.upd{color:var(--mute);font-size:13px}
 .tab{border:0;background:none;color:var(--mute);font:inherit;font-size:15px;padding:10px 18px;cursor:pointer;border-bottom:4px solid transparent;margin-bottom:-2px;white-space:nowrap}
 .tab.on{color:var(--ink);border-color:var(--ink);font-weight:700}
 .bar{display:flex;gap:10px 14px;align-items:center;margin-bottom:14px;flex-wrap:wrap}
+.bar[hidden],.tabs[hidden]{display:none}
 .bar label{font-weight:600}
 select{font:inherit;padding:7px 12px;border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:8px;min-width:130px}
 .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px;margin-bottom:14px}
@@ -41,6 +42,16 @@ footer{display:flex;justify-content:center;padding-top:26px}
 @media(max-width:700px){.kpis.k3{grid-template-columns:repeat(2,1fr)}}
 .kpi.sub{background:rgba(255,250,240,.7)}
 .sec{margin:18px 0 8px;font-size:15px;font-weight:700}
+.pills{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 14px}
+.pill{border:1px solid rgba(26,26,26,.25);background:rgba(255,250,240,.55);color:var(--ink);font:inherit;font-size:14px;padding:7px 16px;border-radius:999px;cursor:pointer}
+.pill.on{background:var(--ink);color:#fff;border-color:var(--ink);font-weight:700}
+.lock{max-width:420px;margin:40px auto;text-align:center}
+.lock input{font:inherit;padding:10px 14px;border:1px solid var(--line);border-radius:8px;width:100%;margin:12px 0;text-align:center;direction:ltr}
+.btn{font:inherit;background:var(--ink);color:#fff;border:0;border-radius:8px;padding:9px 22px;cursor:pointer}
+.btn.ghost{background:none;color:var(--mute);border:1px solid var(--line);padding:5px 14px;font-size:13px}
+.err{color:var(--late);min-height:22px;font-size:14px}
+tr.tot td{font-weight:700;background:rgba(232,178,11,.18)}
+.toolbar{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
 </style>
 </head>
 <body>
@@ -54,8 +65,9 @@ footer{display:flex;justify-content:center;padding-top:26px}
   <button class="tab" data-t="rem">المتبقي</button>
   <button class="tab" data-t="down">دفعات التعاقد</button>
   <button class="tab" data-t="sales">المبيعات</button>
+  <button class="tab" data-t="partners">الشركاء</button>
 </div>
-<div class="bar">
+<div class="bar" id="bar">
   <span id="yearBox"><label for="year">السنة:</label> <select id="year"></select></span>
   <span><label for="mon">الشهر:</label> <select id="mon"></select></span>
 </div>
@@ -77,15 +89,34 @@ const axisFmt=v=>v>=1e6?(v/1e6)+"م":v>=1e3?(v/1e3)+"ك":v;
 const SEP=["صيانة","جراج"];
 const isSep=x=>SEP.includes(x.kind||x.k);
 
+const b64=s=>Uint8Array.from(atob(s),c=>c.charCodeAt(0));
+async function decryptData(enc,pw){
+  const km=await crypto.subtle.importKey("raw",new TextEncoder().encode(pw),"PBKDF2",false,["deriveKey"]);
+  const key=await crypto.subtle.deriveKey({name:"PBKDF2",salt:b64(enc.salt),iterations:enc.iter,hash:"SHA-256"},km,{name:"AES-GCM",length:256},false,["decrypt"]);
+  const pt=await crypto.subtle.decrypt({name:"AES-GCM",iv:b64(enc.iv)},key,b64(enc.ct));
+  return JSON.parse(new TextDecoder().decode(pt));
+}
+function start(){
+  document.getElementById("upd").textContent="آخر تحديث للبيانات: "+D.updated;
+  document.getElementById("tabs").hidden=false;
+  const ys=[...new Set(D.rem.map(x=>x.m.slice(0,4)))].sort();
+  year=ys.includes(CURY)?CURY:"all";
+  render();
+}
 async function load(){
+  const V=document.getElementById("view");
+  document.getElementById("tabs").hidden=true;document.getElementById("bar").hidden=true;
+  let enc;
   try{
-    if(window.__DATA__) D=window.__DATA__;
-    else{const r=await fetch("data.json?"+Date.now());D=await r.json();}
-    document.getElementById("upd").textContent="آخر تحديث للبيانات: "+D.updated;
-    const ys=[...new Set(D.rem.map(x=>x.m.slice(0,4)))].sort();
-    year=ys.includes(CURY)?CURY:"all";
-    render();
-  }catch(e){document.getElementById("view").innerHTML='<div class="card empty">تعذّر تحميل data.json</div>'}
+    enc=window.__DATA_ENC__;
+    if(!enc){const r=await fetch("data.enc.json?"+Date.now());if(!r.ok)throw 0;enc=await r.json();}
+  }catch(e){V.innerHTML='<div class="card empty">تعذّر تحميل البيانات</div>';return}
+  try{const sp=sessionStorage.getItem("hp");if(sp){D=await decryptData(enc,sp);start();return}}catch(e){try{sessionStorage.removeItem("hp")}catch(_){}}
+  V.innerHTML=`<div class="card lock"><div style="font-size:34px">🔒</div><h3>داشبورد مشروع هوم</h3><div class="note">أدخل كلمة السر للدخول</div>
+    <form id="pf"><input type="password" id="pw" autocomplete="current-password" placeholder="كلمة السر" autofocus><div class="err" id="pe"></div><button class="btn" type="submit">دخول</button></form></div>`;
+  document.getElementById("pf").onsubmit=async e=>{e.preventDefault();const pe=document.getElementById("pe"),pw=document.getElementById("pw").value;pe.textContent="جاري الفتح…";
+    try{D=await decryptData(enc,pw);try{sessionStorage.setItem("hp",pw)}catch(_){ }start();}
+    catch(x){pe.textContent="كلمة السر غير صحيحة"}};
 }
 
 function bars(id,keys,label,vals,o){
@@ -118,6 +149,8 @@ function render(){
   document.querySelectorAll(".tab").forEach(b=>b.classList.toggle("on",b.dataset.t===tab));
   const V=document.getElementById("view");
   document.getElementById("yearBox").hidden=tab!=="rem";
+  document.getElementById("bar").hidden=(tab==="partners");
+  if(tab==="partners"){renderPartners(V);return;}
 
   /* ---- قوائم الفلاتر ---- */
   const src=tab==="inst"?D.installments:tab==="rem"?D.rem:tab==="sales"?D.sales:D.downs;
@@ -235,6 +268,79 @@ function render(){
     const ks=[...new Set(all.map(x=>x.m))].sort();
     bars("c1",ks,"دفعات التعاقد",ks.map(m=>byM[m]||0),{name:mname,sel:k=>mon==="all"||k===mon,pick:k=>{mon=k;render()}});
     hbars("c2",group(cur,"bank",x=>x.amount));
+  }
+}
+
+/* =================== الشركاء (مشفّر بكلمة سر) =================== */
+let P=null,ptab="sum",pstmt="all";
+const esc=s=>String(s==null?"":s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+function renderPartners(V){
+  P=D.partners;
+  if(!P){V.innerHTML='<div class="card empty">بيانات الشركاء غير متاحة بعد (تأكد من وجود شيتي «كشوف مصروفات» و«تقفيل شركاء»).</div>';return;}
+  const E=P.exp.filter(s=>s.items.length),Z=P.zaya;
+  const names={sum:"إجمالي المصروفات",det:"تفصيلي الكشوف",ana:"تحليلي المصاريف",zaya:"نسبة شركة زايا (تجميعي)"};
+  let h=`<div class="toolbar"><div class="pills">`+Object.keys(names).map(k=>`<button class="pill${ptab===k?" on":""}" data-p="${k}">${names[k]}</button>`).join("")+`</div></div>`;
+  const all=E.flatMap(s=>s.items.map(i=>({...i,n:s.n,m:s.m})));
+  const totPaid=sum(E,s=>s.paid);
+  const stmtLbl=s=>"كشف "+s.n+" – "+mname(s.m);
+  if(ptab==="sum"){
+    let cum=0;const rows=E.map(s=>{cum+=s.paid;return {s,cum}});
+    const big=all.slice().sort((a,b)=>b.paid-a.paid)[0];
+    h+=kpis([["إجمالي المصروفات المسددة (كل الكشوف)",fmt(totPaid)+" ج.م"],["عدد الكشوف",fmt(E.length)],["متوسط الكشف",fmt(E.length?totPaid/E.length:0)+" ج.م"],["أكبر بند",big?fmt(big.paid)+" ج.م":"-"]])+
+     `<div class="grid"><div class="card"><h3>المصروفات المسددة لكل كشف (اضغط على عمود لعرض تفاصيله)</h3><div class="cv"><canvas id="p1"></canvas></div></div>
+      <div class="card"><h3>حسب التصنيف</h3><div class="cv"><canvas id="p2"></canvas></div></div></div>
+      <div class="card"><h3>ملخص الكشوف</h3>${table([["الكشف",r=>"كشف رقم "+r.s.n],["الفترة",r=>mname(r.s.m)],["عدد البنود",r=>r.s.items.length,"n"],["المسدد",r=>fmt(r.s.paid),"n"],["% من الإجمالي",r=>(totPaid?r.s.paid/totPaid*100:0).toFixed(1)+"%","n"],["التراكمي",r=>fmt(r.cum),"n"]],rows)}
+      <p class="note">كشف أكتوبر لسه فاضي فمش ظاهر. الأرقام من شيت «كشوف مصروفات» (عمود المسدد).</p></div>`;
+  }
+  if(ptab==="det"){
+    const cur=pstmt==="all"?all:all.filter(i=>String(i.n)===pstmt);
+    h+=`<div class="bar"><label for="ps">الكشف:</label><select id="ps"><option value="all">كل الكشوف</option>`+E.map(s=>`<option value="${s.n}"${pstmt===String(s.n)?" selected":""}>${stmtLbl(s)}</option>`).join("")+`</select></div>`+
+      kpis([["المسدد",fmt(sum(cur,i=>i.paid))+" ج.م"],["عدد البنود",fmt(cur.length)],["أكبر بند",fmt(Math.max(0,...cur.map(i=>i.paid)))+" ج.م"]])+
+      `<div class="card"><h3>بنود الكشوف</h3>${table([["الكشف",r=>r.n],["الشهر",r=>mname(r.m)],["البيان",r=>esc(r.name)],["التصنيف",r=>r.cat],["الإجمالي",r=>r.total?fmt(r.total):"-","n"],["المسدد",r=>fmt(r.paid),"n"],["المتبقي",r=>r.rem?fmt(r.rem):"-","n"]],cur)}
+      <p class="note">«الإجمالي» و«المتبقي» بيتسجلوا للبنود المتفق عليها بس (زي الاستشاريين)، وباقي البنود بتتسجل بالمسدد فقط. المتبقي بيتنقل من كشف للتاني (زي المهندس الاستشاري) فمش بنجمعه عشان ما يتكررش.</p></div>`;
+  }
+  if(ptab==="ana"){
+    const byC=group(all,"cat",i=>i.paid),cats=Object.entries(byC).sort((a,b)=>b[1]-a[1]);
+    h+=kpis([["أكبر تصنيف",esc(cats[0]?cats[0][0]:"-")],["قيمته",fmt(cats[0]?cats[0][1]:0)+" ج.م"],["نسبته",(totPaid&&cats[0]?cats[0][1]/totPaid*100:0).toFixed(1)+"%"],["عدد التصنيفات",fmt(cats.length)]])+
+     `<div class="grid"><div class="card"><h3>المصروفات حسب التصنيف</h3><div class="cv"><canvas id="p2"></canvas></div></div>
+      <div class="card"><h3>التصنيف لكل كشف</h3><div class="cv"><canvas id="p3"></canvas></div></div></div>
+      <div class="card"><h3>التصنيف × الكشف</h3><div class="scroll"><table><thead><tr><th>التصنيف</th>`+E.map(s=>`<th class="n">كشف ${s.n}</th>`).join("")+`<th class="n">الإجمالي</th><th class="n">%</th></tr></thead><tbody>`+
+      cats.map(([c,v])=>`<tr><td>${esc(c)}</td>`+E.map(s=>{const x=sum(s.items.filter(i=>i.cat===c),i=>i.paid);return `<td class="n">${x?fmt(x):"-"}</td>`}).join("")+`<td class="n">${fmt(v)}</td><td class="n">${(totPaid?v/totPaid*100:0).toFixed(1)}%</td></tr>`).join("")+
+      `<tr class="tot"><td>الإجمالي</td>`+E.map(s=>`<td class="n">${fmt(s.paid)}</td>`).join("")+`<td class="n">${fmt(totPaid)}</td><td class="n">100%</td></tr></tbody></table></div></div>
+      <div class="card" style="margin-top:12px"><h3>أكبر 10 بنود</h3>${table([["البيان",r=>esc(r.name)],["الكشف",r=>r.n],["التصنيف",r=>r.cat],["المسدد",r=>fmt(r.paid),"n"]],all.slice().sort((a,b)=>b.paid-a.paid).slice(0,10))}
+      <p class="note">التصنيف تلقائي حسب كلمات في البيان، وتقدر تعدّل الكلمات من ملف convert (partners.py).</p></div>`;
+  }
+  if(ptab==="zaya"){
+    const tc=sum(Z,m=>m.contracts),tp=sum(Z,m=>m.zaya);
+    let cum=0;const rows=Z.map(m=>{cum+=m.zaya;return {...m,cum}});
+    h+=kpis([["إجمالي التعاقدات منذ البداية",fmt(tc)+" ج.م"],["إجمالي ما تم لشركة زايا",fmt(tp)+" ج.م"]])+
+     `<div class="grid"><div class="card"><h3>نسبة زايا شهريًا</h3><div class="cv"><canvas id="p4"></canvas></div></div>
+      <div class="card"><h3>التجميعي لنسبة زايا</h3><div class="cv"><canvas id="p5"></canvas></div></div></div>
+      <div class="card"><h3>تجميعي شهري</h3>${table([["الشهر",r=>mname(r.m)],["الوحدات",r=>fmt(r.units),"n"],["إجمالي التعاقدات",r=>fmt(r.contracts),"n"],["إجمالي المقدمات",r=>fmt(r.downs),"n"],["نسبة زايا للشهر",r=>fmt(r.zaya),"n"],["التراكمي",r=>fmt(r.cum),"n"]],rows)}</div>
+      <div class="card" style="margin-top:12px"><h3>مكوّنات نسبة زايا</h3>${table([["الشهر",r=>mname(r.m)],["البيان",r=>esc(r.name)],["المبلغ",r=>fmt(r.amount),"n"]],Z.flatMap(m=>m.items.map(i=>({m:m.m,...i}))))}
+      <p class="note">الأرقام من شيت «تقفيل شركاء».</p></div>`;
+  }
+  V.innerHTML=h;
+  V.querySelectorAll(".pill").forEach(b=>b.onclick=()=>{ptab=b.dataset.p;render()});
+  const ps=document.getElementById("ps");if(ps)ps.onchange=e=>{pstmt=e.target.value;render()};
+  const catCols=["#1f7a73","#5c7a2b","#c2410c","#7a5c1f","#3b5b8c","#8c3b6e","#4f4f4f","#b8860b","#2e8b57"];
+  if(ptab==="sum"){
+    charts.push(new Chart(document.getElementById("p1"),{type:"bar",data:{labels:E.map(s=>"كشف "+s.n),datasets:[{data:E.map(s=>s.paid),backgroundColor:C.teal,borderRadius:3}]},
+      options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>fmt(c.parsed.y)+" ج.م"}}},scales:{y:{ticks:{callback:axisFmt},grid:{color:C.line}},x:{grid:{display:false}}},
+      onClick:(ev,els)=>{if(els.length){pstmt=String(E[els[0].index].n);ptab="det";render()}}}}));
+    hbars("p2",group(all,"cat",i=>i.paid));
+  }
+  if(ptab==="ana"){
+    hbars("p2",group(all,"cat",i=>i.paid));
+    const cats=Object.keys(group(all,"cat",i=>i.paid)),ms=E.map(s=>s.m);let run={};
+    charts.push(new Chart(document.getElementById("p3"),{type:"bar",data:{labels:E.map(s=>"كشف "+s.n),datasets:cats.map((c,k)=>({label:c,data:E.map(s=>sum(s.items.filter(i=>i.cat===c),i=>i.paid)),backgroundColor:catCols[k%catCols.length]}))},
+      options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:"bottom",labels:{boxWidth:10,font:{size:10}}},tooltip:{callbacks:{label:c=>c.dataset.label+": "+fmt(c.parsed.y)}}},scales:{x:{stacked:true,grid:{display:false}},y:{stacked:true,ticks:{callback:axisFmt},grid:{color:C.line}}}}}));
+  }
+  if(ptab==="zaya"){
+    bars("p4",Z.map(m=>m.m),"نسبة زايا",Z.map(m=>m.zaya),{name:mname});
+    let c2=0;const cu=Z.map(m=>(c2+=m.zaya));
+    charts.push(new Chart(document.getElementById("p5"),{type:"line",data:{labels:Z.map(m=>mname(m.m)),datasets:[{data:cu,borderColor:C.olive,backgroundColor:"rgba(92,122,43,.2)",fill:true,tension:.25}]},
+      options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>fmt(c.parsed.y)+" ج.م"}}},scales:{y:{ticks:{callback:axisFmt},grid:{color:C.line}},x:{grid:{display:false}}}}}));
   }
 }
 document.getElementById("tabs").onclick=e=>{if(e.target.dataset.t){tab=e.target.dataset.t;mon="all";render()}};

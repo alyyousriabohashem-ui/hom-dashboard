@@ -84,3 +84,22 @@ json.dump(dict(updated=(open("modified.txt").read().strip() if os.path.exists("m
                sales=sales, downs=downs, downs_pending=float(pend)),
           open(out, "w", encoding="utf-8"), ensure_ascii=False)
 print("OK", len(installments), len(sales), len(downs), "->", out)
+
+# ---- تاب الشركاء + تشفير الداشبورد كله بكلمة سر (DASH_PASSWORD)
+d = json.load(open(out, encoding="utf-8"))
+try:
+    import partners
+    d["partners"] = partners.build_partners(wb)
+    print("OK partners")
+except Exception as ex:
+    print("تعذّر بناء تاب الشركاء:", ex)
+pw = os.environ.get("DASH_PASSWORD", "")
+if not pw:
+    # أمان: من غير كلمة سر ما ننشرش بيانات مكشوفة
+    os.remove(out)
+    raise SystemExit("DASH_PASSWORD غير مضبوط: لم يتم إنشاء data.enc.json (البيانات القديمة المشفّرة كما هي).")
+import dcrypt
+enc_out = os.path.join(os.path.dirname(os.path.abspath(out)), "data.enc.json")
+json.dump(dcrypt.encrypt(d, pw), open(enc_out, "w", encoding="utf-8"))
+os.remove(out)            # لا نترك نسخة مكشوفة
+print("OK encrypted ->", enc_out)
