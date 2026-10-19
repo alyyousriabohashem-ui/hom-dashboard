@@ -111,11 +111,10 @@ async function load(){
     enc=window.__DATA_ENC__;
     if(!enc){const r=await fetch("data.enc.json?"+Date.now());if(!r.ok)throw 0;enc=await r.json();}
   }catch(e){V.innerHTML='<div class="card empty">تعذّر تحميل البيانات</div>';return}
-  try{const sp=sessionStorage.getItem("hp");if(sp){D=await decryptData(enc,sp);start();return}}catch(e){try{sessionStorage.removeItem("hp")}catch(_){}}
   V.innerHTML=`<div class="card lock"><div style="font-size:34px">🔒</div><h3>داشبورد مشروع هوم</h3><div class="note">أدخل كلمة السر للدخول</div>
     <form id="pf"><input type="password" id="pw" autocomplete="current-password" placeholder="كلمة السر" autofocus><div class="err" id="pe"></div><button class="btn" type="submit">دخول</button></form></div>`;
   document.getElementById("pf").onsubmit=async e=>{e.preventDefault();const pe=document.getElementById("pe"),pw=document.getElementById("pw").value;pe.textContent="جاري الفتح…";
-    try{D=await decryptData(enc,pw);try{sessionStorage.setItem("hp",pw)}catch(_){ }start();}
+    try{D=await decryptData(enc,pw);try{sessionStorage.removeItem("hp")}catch(_){ }start();}
     catch(x){pe.textContent="كلمة السر غير صحيحة"}};
 }
 
