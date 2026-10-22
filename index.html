@@ -41,6 +41,7 @@ footer{display:flex;justify-content:center;padding-top:26px}
 .kpis.k3{grid-template-columns:repeat(3,1fr)}
 @media(max-width:700px){.kpis.k3{grid-template-columns:repeat(2,1fr)}}
 .kpi.sub{background:rgba(255,250,240,.7)}
+.mx th,.mx td{padding:8px 4px;font-size:12px}
 .sec{margin:18px 0 8px;font-size:15px;font-weight:700}
 .pills{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 14px}
 .pill{border:1px solid rgba(26,26,26,.25);background:rgba(255,250,240,.55);color:var(--ink);font:inherit;font-size:14px;padding:7px 16px;border-radius:999px;cursor:pointer}
@@ -62,6 +63,7 @@ tr.tot td{font-weight:700;background:rgba(232,178,11,.18)}
 </header>
 <div class="tabs" id="tabs">
   <button class="tab on" data-t="inst">الأقساط</button>
+  <button class="tab" data-t="proj">المتحصل من المشروع</button>
   <button class="tab" data-t="rem">المتبقي</button>
   <button class="tab" data-t="down">دفعات التعاقد</button>
   <button class="tab" data-t="sales">المبيعات</button>
@@ -148,7 +150,8 @@ function render(){
   document.querySelectorAll(".tab").forEach(b=>b.classList.toggle("on",b.dataset.t===tab));
   const V=document.getElementById("view");
   document.getElementById("yearBox").hidden=tab!=="rem";
-  document.getElementById("bar").hidden=(tab==="partners");
+  document.getElementById("bar").hidden=(tab==="partners"||tab==="proj");
+  if(tab==="proj"){document.getElementById("yearBox").hidden=true;renderProject(V);return;}
   if(tab==="partners"){renderPartners(V);return;}
 
   /* ---- قوائم الفلاتر ---- */
@@ -341,6 +344,50 @@ function renderPartners(V){
     charts.push(new Chart(document.getElementById("p5"),{type:"line",data:{labels:Z.map(m=>mname(m.m)),datasets:[{data:cu,borderColor:C.olive,backgroundColor:"rgba(92,122,43,.2)",fill:true,tension:.25}]},
       options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>fmt(c.parsed.y)+" ج.م"}}},scales:{y:{ticks:{callback:axisFmt},grid:{color:C.line}},x:{grid:{display:false}}}}}));
   }
+}
+
+/* =================== المتحصل من المشروع (أقساط + تعاقدات + جراج) وتاب الصيانة =================== */
+let jtab="all",jy="all",jm="all";
+function renderProject(V){
+  const mk=(a,type)=>a.map(x=>({m:x.m,date:x.date,unit:x.unit||"-",type,bank:x.bank||"-",method:x.method||"-",a:x.amount}));
+  const main=[...mk(D.installments.filter(x=>x.kind==="قسط"||x.kind==="قسط0"),"قسط"),...mk(D.downs,"تعاقد"),...mk(D.installments.filter(x=>x.kind==="جراج"),"جراج")];
+  const maint=mk(D.installments.filter(x=>x.kind==="صيانة"),"صيانة");
+  const src=jtab==="maint"?maint:main;
+  const ys=[...new Set(src.map(x=>x.m.slice(0,4)))].sort();
+  if(jy!=="all"&&!ys.includes(jy))jy="all";
+  const inY=a=>jy==="all"?a:a.filter(x=>x.m.startsWith(jy));
+  const msList=[...new Set(inY(src).map(x=>x.m))].sort();
+  if(jm!=="all"&&!msList.includes(jm))jm="all";
+  const cur=jm==="all"?inY(src):src.filter(x=>x.m===jm);
+  const T=(a,t)=>sum(a.filter(x=>x.type===t),x=>x.a);
+  const ttl=jm!=="all"?mname(jm):jy!=="all"?"سنة "+jy:"كل الفترة";
+  let h=`<div class="pills"><button class="pill${jtab==="all"?" on":""}" data-j="all">المتحصل من المشروع</button><button class="pill${jtab==="maint"?" on":""}" data-j="maint">المتحصل من الصيانة</button></div>
+    <div class="bar"><span><label for="jy">السنة:</label> <select id="jy"><option value="all">كل السنين</option>${ys.map(y=>`<option value="${y}"${jy===y?" selected":""}>${y}</option>`).join("")}</select></span>
+    <span><label for="jm">الشهر:</label> <select id="jm"><option value="all">كل الشهور</option>${msList.map(m=>`<option value="${m}"${jm===m?" selected":""}>${mname(m)}</option>`).join("")}</select></span></div>`;
+  const types=jtab==="maint"?["صيانة"]:["قسط","تعاقد","جراج"];
+  const lbl={"قسط":"الأقساط","تعاقد":"دفعات التعاقد","جراج":"الجراج","صيانة":"الصيانة"};
+  const tot=sum(cur,x=>x.a);
+  h+=kpis(jtab==="maint"?[["المتحصل من الصيانة – "+ttl,fmt(tot)+" ج.م"],["عدد الدفعات",fmt(cur.length)],["إجمالي الصيانة منذ البداية",fmt(sum(maint,x=>x.a))+" ج.م"]]
+    :[["إجمالي المتحصل من المشروع – "+ttl,fmt(tot)+" ج.م"],["الأقساط",fmt(T(cur,"قسط"))+" ج.م"],["دفعات التعاقد",fmt(T(cur,"تعاقد"))+" ج.م"],["الجراج",fmt(T(cur,"جراج"))+" ج.م"],["عدد الدفعات",fmt(cur.length)],["إجمالي المتحصل منذ البداية",fmt(sum(main,x=>x.a))+" ج.م"]]);
+  // سنة × شهر
+  const yrs=ys.length?ys:[];
+  h+=`<div class="card" style="margin-bottom:12px"><h3>المتحصل بالسنة والشهر${jtab==="maint"?" – الصيانة":""}</h3><div class="scroll"><table class="mx"><thead><tr><th>السنة</th>`+AR.map(m=>`<th class="n">${m}</th>`).join("")+`<th class="n">الإجمالي</th></tr></thead><tbody>`+
+    yrs.map(y=>`<tr><td><b>${y}</b></td>`+AR.map((_,i)=>{const k=y+"-"+String(i+1).padStart(2,"0");const v=sum(src.filter(x=>x.m===k),x=>x.a);return `<td class="n">${v?fmt(v):"-"}</td>`}).join("")+`<td class="n"><b>${fmt(sum(src.filter(x=>x.m.startsWith(y)),x=>x.a))}</b></td></tr>`).join("")+
+    `</tbody></table></div></div>`;
+  // رسم + جدول شهري
+  const ks=[...new Set(inY(src).map(x=>x.m))].sort();
+  h+=`<div class="grid"><div class="card"><h3>المتحصل شهريًا – ${jy==="all"?"كل السنين":jy}</h3><div class="cv"><canvas id="j1"></canvas></div></div>
+     <div class="card"><h3>حسب جهة التحصيل – ${ttl}</h3><div class="cv"><canvas id="j2"></canvas></div></div></div>
+     <div class="card" style="margin-bottom:12px"><h3>تفصيل شهري – ${jy==="all"?"كل السنين":jy}</h3>${table([["الشهر",r=>mname(r.m)],...types.map(t=>[lbl[t],r=>fmt(T(r.rows,t)),"n"]),...(types.length>1?[["الإجمالي",r=>fmt(sum(r.rows,x=>x.a)),"n"]]:[]),["عدد الدفعات",r=>fmt(r.rows.length),"n"]],ks.map(m=>({m,rows:src.filter(x=>x.m===m)})))}</div>
+     <div class="card"><h3>تفاصيل التحصيل – ${ttl}</h3>${table([["التاريخ",r=>r.date],["النوع",r=>lbl[r.type]],["الوحدة",r=>r.unit],["طريقة السداد",r=>r.method],["البنك",r=>r.bank],["المبلغ",r=>fmt(r.a),"n"]],byDate(cur,"date"))}</div>`;
+  V.innerHTML=h;
+  V.querySelectorAll("[data-j]").forEach(b=>b.onclick=()=>{jtab=b.dataset.j;jy="all";jm="all";render()});
+  document.getElementById("jy").onchange=e=>{jy=e.target.value;jm="all";render()};
+  document.getElementById("jm").onchange=e=>{jm=e.target.value;render()};
+  const cols={"قسط":C.teal,"تعاقد":C.olive,"جراج":"#7a5c1f","صيانة":C.teal};
+  charts.push(new Chart(document.getElementById("j1"),{type:"bar",data:{labels:ks.map(mname),datasets:types.map(t=>({label:lbl[t],data:ks.map(m=>T(src.filter(x=>x.m===m),t)),backgroundColor:cols[t],borderRadius:2}))},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:types.length>1,position:"bottom",labels:{boxWidth:10}},tooltip:{callbacks:{label:c=>c.dataset.label+": "+fmt(c.parsed.y)}}},scales:{x:{stacked:true,grid:{display:false}},y:{stacked:true,ticks:{callback:axisFmt},grid:{color:C.line}}}}}));
+  hbars("j2",group(cur,"bank",x=>x.a));
 }
 document.getElementById("tabs").onclick=e=>{if(e.target.dataset.t){tab=e.target.dataset.t;mon="all";render()}};
 document.getElementById("year").onchange=e=>{year=e.target.value;mon="all";render()};
