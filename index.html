@@ -36,7 +36,8 @@ tr.late td{color:var(--late)}
 .scroll{max-height:380px;overflow:auto}
 .empty{color:var(--mute);padding:20px;text-align:center}
 .note{color:var(--mute);font-size:13px;margin:0 0 8px}
-footer{display:flex;justify-content:center;padding-top:26px}
+footer{display:flex;flex-direction:column;align-items:center;gap:10px;padding-top:26px}
+.by{font-size:13px;color:var(--ink);opacity:.8;letter-spacing:.3px;direction:ltr}
 .hom{height:46px;width:auto;max-width:100%}
 .kpis.k3{grid-template-columns:repeat(3,1fr)}
 @media(max-width:700px){.kpis.k3{grid-template-columns:repeat(2,1fr)}}
@@ -74,7 +75,7 @@ tr.tot td{font-weight:700;background:rgba(232,178,11,.18)}
   <span><label for="mon">الشهر:</label> <select id="mon"></select></span>
 </div>
 <div id="view"></div>
-<footer><img class="hom" src="hom.png" alt="hom. Harmony of moments"></footer>
+<footer><img class="hom" src="hom.png" alt="hom. Harmony of moments"><div class="by">Prepared by <b>Aly Yousri</b> · Senior AR Accountant</div></footer>
 </div>
 
 <script>
