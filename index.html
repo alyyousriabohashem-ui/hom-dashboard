@@ -42,6 +42,13 @@ footer{display:flex;flex-direction:column;align-items:center;gap:10px;padding-to
 .kpis.k3{grid-template-columns:repeat(3,1fr)}
 @media(max-width:700px){.kpis.k3{grid-template-columns:repeat(2,1fr)}}
 .kpi.sub{background:rgba(255,250,240,.7)}
+.msw{position:relative;display:inline-flex;align-items:center;gap:8px}
+.ms summary{list-style:none;cursor:pointer;font:inherit;padding:7px 12px;border:1px solid var(--line);background:var(--card);border-radius:8px;min-width:150px}
+.ms summary::-webkit-details-marker{display:none}
+.msbox{position:absolute;z-index:20;top:100%;margin-top:4px;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:10px;min-width:220px;max-height:320px;overflow:auto;box-shadow:0 6px 20px rgba(0,0,0,.18)}
+.msact{display:flex;gap:6px;margin-bottom:6px}
+.mi{display:block;padding:4px 2px;cursor:pointer;font-weight:400}
+.mi input{margin-inline-end:6px}
 .mx th,.mx td{padding:8px 4px;font-size:12px}
 .sec{margin:18px 0 8px;font-size:15px;font-weight:700}
 .pills{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 14px}
@@ -349,6 +356,7 @@ function renderPartners(V){
 
 /* =================== المتحصل من المشروع (أقساط + تعاقدات + جراج) وتاب الصيانة =================== */
 let jtab="all",jy="all",jm="all";
+let jsel=null,jopen=false;
 function renderProject(V){
   const mk=(a,type)=>a.map(x=>({m:x.m,date:x.date,unit:x.unit||"-",type,bank:x.bank||"-",method:x.method||"-",a:x.amount}));
   const main=[...mk(D.installments.filter(x=>x.kind==="قسط"||x.kind==="قسط0"),"قسط"),...mk(D.downs,"تعاقد"),...mk(D.installments.filter(x=>x.kind==="جراج"),"جراج")];
@@ -358,35 +366,42 @@ function renderProject(V){
   if(jy!=="all"&&!ys.includes(jy))jy="all";
   const inY=a=>jy==="all"?a:a.filter(x=>x.m.startsWith(jy));
   const msList=[...new Set(inY(src).map(x=>x.m))].sort();
-  if(jm!=="all"&&!msList.includes(jm))jm="all";
-  const cur=jm==="all"?inY(src):src.filter(x=>x.m===jm);
+  let sel=jsel?jsel.filter(m=>msList.includes(m)):null;
+  if(sel&&sel.length===msList.length)sel=null;
+  const cur=sel?inY(src).filter(x=>sel.includes(x.m)):inY(src);
   const T=(a,t)=>sum(a.filter(x=>x.type===t),x=>x.a);
-  const ttl=jm!=="all"?mname(jm):jy!=="all"?"سنة "+jy:"كل الفترة";
+  const ttl=sel?(sel.length===1?mname(sel[0]):sel.length+" شهور محددة"):jy!=="all"?"سنة "+jy:"كل الفترة";
+  const mlabel=sel?sel.length+" من "+msList.length+" شهر":"كل الشهور";
   let h=`<div class="pills"><button class="pill${jtab==="all"?" on":""}" data-j="all">المتحصل من المشروع</button><button class="pill${jtab==="maint"?" on":""}" data-j="maint">المتحصل من الصيانة</button></div>
     <div class="bar"><span><label for="jy">السنة:</label> <select id="jy"><option value="all">كل السنين</option>${ys.map(y=>`<option value="${y}"${jy===y?" selected":""}>${y}</option>`).join("")}</select></span>
-    <span><label for="jm">الشهر:</label> <select id="jm"><option value="all">كل الشهور</option>${msList.map(m=>`<option value="${m}"${jm===m?" selected":""}>${mname(m)}</option>`).join("")}</select></span></div>`;
+    <span class="msw"><label>الشهور:</label> <details class="ms" id="jms"${jopen?" open":""}><summary>${mlabel}</summary><div class="msbox"><div class="msact"><button type="button" class="btn ghost" id="jall">تحديد الكل</button><button type="button" class="btn ghost" id="jnone">مسح الكل</button></div>${msList.map(m=>`<label class="mi"><input type="checkbox" value="${m}"${!sel||sel.includes(m)?" checked":""}> ${mname(m)}</label>`).join("")}</div></details></span></div>`;
   const types=jtab==="maint"?["صيانة"]:["قسط","تعاقد","جراج"];
   const lbl={"قسط":"الأقساط","تعاقد":"دفعات التعاقد","جراج":"الجراج","صيانة":"الصيانة"};
   const tot=sum(cur,x=>x.a);
   h+=kpis(jtab==="maint"?[["المتحصل من الصيانة – "+ttl,fmt(tot)+" ج.م"],["عدد الدفعات",fmt(cur.length)],["إجمالي الصيانة منذ البداية",fmt(sum(maint,x=>x.a))+" ج.م"]]
     :[["إجمالي المتحصل من المشروع – "+ttl,fmt(tot)+" ج.م"],["الأقساط",fmt(T(cur,"قسط"))+" ج.م"],["دفعات التعاقد",fmt(T(cur,"تعاقد"))+" ج.م"],["الجراج",fmt(T(cur,"جراج"))+" ج.م"],["عدد الدفعات",fmt(cur.length)],["إجمالي المتحصل منذ البداية",fmt(sum(main,x=>x.a))+" ج.م"]]);
-  // سنة × شهر
-  const yrs=ys.length?ys:[];
-  h+=`<div class="card" style="margin-bottom:12px"><h3>المتحصل بالسنة والشهر${jtab==="maint"?" – الصيانة":""}</h3><div class="scroll"><table class="mx"><thead><tr><th>السنة</th>`+AR.map(m=>`<th class="n">${m}</th>`).join("")+`<th class="n">الإجمالي</th></tr></thead><tbody>`+
-    yrs.map(y=>`<tr><td><b>${y}</b></td>`+AR.map((_,i)=>{const k=y+"-"+String(i+1).padStart(2,"0");const v=sum(src.filter(x=>x.m===k),x=>x.a);return `<td class="n">${v?fmt(v):"-"}</td>`}).join("")+`<td class="n"><b>${fmt(sum(src.filter(x=>x.m.startsWith(y)),x=>x.a))}</b></td></tr>`).join("")+
+  // سنة × شهر (حسب الشهور المحددة)
+  const yrs=ys.filter(y=>jy==="all"||y===jy);
+  h+=`<div class="card" style="margin-bottom:12px"><h3>المتحصل بالسنة والشهر${jtab==="maint"?" – الصيانة":""}${sel?" (الشهور المحددة فقط)":""}</h3><div class="scroll"><table class="mx"><thead><tr><th>السنة</th>`+AR.map(m=>`<th class="n">${m}</th>`).join("")+`<th class="n">الإجمالي</th></tr></thead><tbody>`+
+    yrs.map(y=>`<tr><td><b>${y}</b></td>`+AR.map((_,i)=>{const k=y+"-"+String(i+1).padStart(2,"0");const v=sum(cur.filter(x=>x.m===k),x=>x.a);return `<td class="n">${v?fmt(v):"-"}</td>`}).join("")+`<td class="n"><b>${fmt(sum(cur.filter(x=>x.m.startsWith(y)),x=>x.a))}</b></td></tr>`).join("")+
     `</tbody></table></div></div>`;
-  // رسم + جدول شهري
-  const ks=[...new Set(inY(src).map(x=>x.m))].sort();
-  h+=`<div class="grid"><div class="card"><h3>المتحصل شهريًا – ${jy==="all"?"كل السنين":jy}</h3><div class="cv"><canvas id="j1"></canvas></div></div>
+  const ks=[...new Set(cur.map(x=>x.m))].sort();
+  h+=`<div class="grid"><div class="card"><h3>المتحصل شهريًا – ${ttl}</h3><div class="cv"><canvas id="j1"></canvas></div></div>
      <div class="card"><h3>حسب جهة التحصيل – ${ttl}</h3><div class="cv"><canvas id="j2"></canvas></div></div></div>
-     <div class="card" style="margin-bottom:12px"><h3>تفصيل شهري – ${jy==="all"?"كل السنين":jy}</h3>${table([["الشهر",r=>mname(r.m)],...types.map(t=>[lbl[t],r=>fmt(T(r.rows,t)),"n"]),...(types.length>1?[["الإجمالي",r=>fmt(sum(r.rows,x=>x.a)),"n"]]:[]),["عدد الدفعات",r=>fmt(r.rows.length),"n"]],ks.map(m=>({m,rows:src.filter(x=>x.m===m)})))}</div>
+     <div class="card" style="margin-bottom:12px"><h3>تفصيل شهري – ${ttl}</h3>${table([["الشهر",r=>mname(r.m)],...types.map(t=>[lbl[t],r=>fmt(T(r.rows,t)),"n"]),...(types.length>1?[["الإجمالي",r=>fmt(sum(r.rows,x=>x.a)),"n"]]:[]),["عدد الدفعات",r=>fmt(r.rows.length),"n"]],ks.map(m=>({m,rows:cur.filter(x=>x.m===m)})))}</div>
      <div class="card"><h3>تفاصيل التحصيل – ${ttl}</h3>${table([["التاريخ",r=>r.date],["النوع",r=>lbl[r.type]],["الوحدة",r=>r.unit],["طريقة السداد",r=>r.method],["البنك",r=>r.bank],["المبلغ",r=>fmt(r.a),"n"]],byDate(cur,"date"))}</div>`;
   V.innerHTML=h;
-  V.querySelectorAll("[data-j]").forEach(b=>b.onclick=()=>{jtab=b.dataset.j;jy="all";jm="all";render()});
-  document.getElementById("jy").onchange=e=>{jy=e.target.value;jm="all";render()};
-  document.getElementById("jm").onchange=e=>{jm=e.target.value;render()};
+  V.querySelectorAll("[data-j]").forEach(b=>b.onclick=()=>{jtab=b.dataset.j;jy="all";jm="all";jsel=null;jopen=false;render()});
+  document.getElementById("jy").onchange=e=>{jy=e.target.value;jm="all";jsel=null;jopen=false;render()};
+  const box=document.getElementById("jms");
+  box.ontoggle=()=>{jopen=box.open};
+  const apply=l=>{jsel=l;jopen=true;render()};
+  const checked=()=>[...box.querySelectorAll("input:checked")].map(i=>i.value);
+  box.querySelectorAll("input").forEach(i=>i.onchange=()=>{const c=checked();apply(c.length===msList.length?null:c)});
+  document.getElementById("jall").onclick=()=>apply(null);
+  document.getElementById("jnone").onclick=()=>apply([]);
   const cols={"قسط":C.teal,"تعاقد":C.olive,"جراج":"#7a5c1f","صيانة":C.teal};
-  charts.push(new Chart(document.getElementById("j1"),{type:"bar",data:{labels:ks.map(mname),datasets:types.map(t=>({label:lbl[t],data:ks.map(m=>T(src.filter(x=>x.m===m),t)),backgroundColor:cols[t],borderRadius:2}))},
+  charts.push(new Chart(document.getElementById("j1"),{type:"bar",data:{labels:ks.map(mname),datasets:types.map(t=>({label:lbl[t],data:ks.map(m=>T(cur.filter(x=>x.m===m),t)),backgroundColor:cols[t],borderRadius:2}))},
     options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:types.length>1,position:"bottom",labels:{boxWidth:10}},tooltip:{callbacks:{label:c=>c.dataset.label+": "+fmt(c.parsed.y)}}},scales:{x:{stacked:true,grid:{display:false}},y:{stacked:true,ticks:{callback:axisFmt},grid:{color:C.line}}}}}));
   hbars("j2",group(cur,"bank",x=>x.a));
 }
