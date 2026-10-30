@@ -61,18 +61,12 @@ footer{display:flex;flex-direction:column;align-items:center;gap:10px;padding-to
 .err{color:var(--late);min-height:22px;font-size:14px}
 tr.tot td{font-weight:700;background:rgba(232,178,11,.18)}
 .scroll.fit{max-height:none}
-table.st{border:1px solid #6b7a99}
-table.st th,table.st td{border:1px solid #6b7a99;text-align:center;color:#111}
-table.st .ttl th{background:#8eaadb;font-size:15px}
-table.st thead tr.hd th{background:#b4c6e7}
-table.st tr.rv td{background:#b4c6e7}
-table.st tr.ex td{background:#f8cbad}
-table.st td.sb{background:#b4c6e7;font-weight:700}
-table.st tr.ex td.sb{background:#f8cbad}
-table.st td.em{background:transparent;border-color:transparent}
-table.st tr.bl td{background:#92d050;font-weight:700}
-table.st tr.bl td.em{background:transparent;border-color:transparent}
-table.st td.lb{text-align:center}
+table.st th,table.st td{border:0;border-bottom:1px solid var(--line);background:transparent}
+table.st th{position:static}
+table.st .ttl th{font-size:15px;font-weight:700;color:inherit;border-bottom:0}
+table.st td.sb{font-weight:700}
+table.st td.em{border-color:transparent}
+table.st tr.bl td{font-weight:700;border-bottom:0}
 .toolbar{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
 </style>
 </head>
@@ -366,7 +360,7 @@ function renderPartners(V){
       const stBox=cm=>{
         const G=cm.proj_g||[],bl=tr(cm.proj);
         if(!G.length)return "<h3>تسوية رصيد المشروع</h3>"+lineT(cm.proj);
-        let b=`<div class="scroll fit"><table class="st"><thead><tr class="ttl"><th colspan="4">تسوية رصيد المشروع</th></tr><tr class="hd"><th>م</th><th>بيان</th><th>المبلغ</th><th></th></tr></thead><tbody>`;
+        let b=`<div class="scroll fit"><table class="st"><thead><tr class="ttl"><th colspan="4">تسوية رصيد المشروع</th></tr><tr class="hd"><th>م</th><th>البيان</th><th class="n">المبلغ</th><th></th></tr></thead><tbody>`;
         G.forEach((g,gi)=>{
           const cls=g.kind==="exp"?"ex":"rv",n=g.items.length;
           g.items.forEach((x,i)=>{
@@ -374,7 +368,7 @@ function renderPartners(V){
             if(g.kind==="exp"){ if(i===0) last=`<td class="sb n" rowspan="${n}">${fm(g.sub)}</td>`; }
             else if(i===0) last=`<td class="em"></td>`;
             else if(i===1) last=`<td class="sb n" rowspan="${n-1}">${fm(g.sub)}</td>`;
-            b+=`<tr class="${cls}"><td>${i+1}</td><td class="lb">${esc(x.label)}</td><td class="n">${fm(x.amount)}</td>${last}</tr>`;
+            b+=`<tr class="${cls}"><td>${i+1}</td><td>${esc(x.label)}</td><td class="n">${fm(x.amount)}</td>${last}</tr>`;
           });
         });
         if(bl)b+=`<tr class="bl"><td class="em"></td><td>الرصيد</td><td class="n">${fm(bl.amount)}</td><td class="em"></td></tr>`;
