@@ -149,8 +149,9 @@ def group_proj(items):
     out = []
     for kind, part in parts:
         if not part: continue
-        sub = next((x["sub"] for x in part if x.get("sub") is not None), None)
-        if sub is None: sub = sum((x["amount"] or 0) for x in part)
+        tot = sum((x["amount"] or 0) for x in part)
+        # المجموع الفرعي = الخلية اللي قيمتها بتساوي مجموع المجموعة؛ وإلا نحسبه (يتجاهل أي رقم تاني على الشمال)
+        sub = next((x["sub"] for x in part if x.get("sub") is not None and abs(x["sub"] - tot) < 1), tot)
         out.append(dict(kind=kind, sub=sub, items=[dict(label=x["label"], amount=x["amount"]) for x in part]))
     return out
 
