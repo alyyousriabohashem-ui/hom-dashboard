@@ -89,11 +89,20 @@ print("OK", len(installments), len(sales), len(downs), "->", out)
 d = json.load(open(out, encoding="utf-8"))
 try:
     import partners
-    d["partners"] = partners.build_partners(wb)
+    _partners = partners.build_partners(wb)
     print("OK partners")
 except Exception as ex:
+    _partners = None
     print("تعذّر بناء تاب الشركاء:", ex)
 pw = os.environ.get("DASH_PASSWORD", "")
+ppw = os.environ.get("PARTNERS_PASSWORD", "")
+if _partners is not None:
+    if ppw:
+        import dcrypt as _dc
+        # بيانات الشركاء مشفّرة بكلمة سر منفصلة داخل الملف المشفّر الرئيسي
+        d["partners_enc"] = _dc.encrypt(_partners, ppw, b"hom-partners-salt")
+    else:
+        print("تحذير: PARTNERS_PASSWORD غير مضبوط، تاب الشركاء لن يظهر (لا نكشف بياناته).")
 if not pw:
     # أمان: من غير كلمة سر ما ننشرش بيانات مكشوفة
     os.remove(out)

@@ -60,6 +60,19 @@ footer{display:flex;flex-direction:column;align-items:center;gap:10px;padding-to
 .btn.ghost{background:none;color:var(--mute);border:1px solid var(--line);padding:5px 14px;font-size:13px}
 .err{color:var(--late);min-height:22px;font-size:14px}
 tr.tot td{font-weight:700;background:rgba(232,178,11,.18)}
+.scroll.fit{max-height:none}
+table.st{border:1px solid #6b7a99}
+table.st th,table.st td{border:1px solid #6b7a99;text-align:center;color:#111}
+table.st .ttl th{background:#8eaadb;font-size:15px}
+table.st thead tr.hd th{background:#b4c6e7}
+table.st tr.rv td{background:#b4c6e7}
+table.st tr.ex td{background:#f8cbad}
+table.st td.sb{background:#b4c6e7;font-weight:700}
+table.st tr.ex td.sb{background:#f8cbad}
+table.st td.em{background:transparent;border-color:transparent}
+table.st tr.bl td{background:#92d050;font-weight:700}
+table.st tr.bl td.em{background:transparent;border-color:transparent}
+table.st td.lb{text-align:center}
 .toolbar{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
 </style>
 </head>
@@ -87,7 +100,7 @@ tr.tot td{font-weight:700;background:rgba(232,178,11,.18)}
 
 <script>
 const AR=["يناير","فبراير","مارس","أبريل","مايو","يونيو","يوليو","أغسطس","سبتمبر","أكتوبر","نوفمبر","ديسمبر"];
-const fmt=n=>Math.round(n).toLocaleString("en-US");
+const fmt=n=>{const s=Math.round(n).toLocaleString("en-US");return n<0?"\u200e"+s:s};
 const mname=m=>AR[+m.slice(5)-1]+" "+m.slice(0,4);
 const C={teal:"#1f7a73",tealLo:"rgba(31,122,115,.32)",olive:"#5c7a2b",late:"#c2410c",lateLo:"rgba(194,65,12,.32)",line:"#e7dcc0"};
 const NOW=new Date(),CURY=String(NOW.getFullYear()),CUR=CURY+"-"+String(NOW.getMonth()+1).padStart(2,"0");
@@ -157,6 +170,7 @@ function render(){
   charts.forEach(c=>c.destroy());charts=[];
   document.querySelectorAll(".tab").forEach(b=>b.classList.toggle("on",b.dataset.t===tab));
   const V=document.getElementById("view");
+  if(tab!=="partners")P=null;   // الشركاء يطلب كلمة السر كل مرة تدخل فيها التاب
   document.getElementById("yearBox").hidden=tab!=="rem";
   document.getElementById("bar").hidden=(tab==="partners"||tab==="proj");
   if(tab==="proj"){document.getElementById("yearBox").hidden=true;renderProject(V);return;}
@@ -282,13 +296,20 @@ function render(){
 }
 
 /* =================== الشركاء (مشفّر بكلمة سر) =================== */
-let P=null,ptab="sum",pstmt="all";
+let P=null,ptab="sum",pstmt="all",pcm=null;
 const esc=s=>String(s==null?"":s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 function renderPartners(V){
-  P=D.partners;
-  if(!P){V.innerHTML='<div class="card empty">بيانات الشركاء غير متاحة بعد (تأكد من وجود شيتي «كشوف مصروفات» و«تقفيل شركاء»).</div>';return;}
+  if(!P){
+    if(!D.partners_enc){V.innerHTML='<div class="card empty">بيانات الشركاء غير متاحة بعد (تأكد من وجود شيتي «كشوف مصروفات» و«تقفيل شركاء» وضبط PARTNERS_PASSWORD).</div>';return;}
+    V.innerHTML=`<div class="card lock"><div style="font-size:34px">🔒</div><h3>الشركاء</h3><div class="note">أدخل كلمة سر الشركاء</div>
+      <form id="ppf"><input type="password" id="ppw" autocomplete="off" placeholder="كلمة سر الشركاء" autofocus><div class="err" id="ppe"></div><button class="btn" type="submit">فتح</button></form></div>`;
+    document.getElementById("ppf").onsubmit=async e=>{e.preventDefault();const pe=document.getElementById("ppe");pe.textContent="جاري الفتح…";
+      try{P=await decryptData(D.partners_enc,document.getElementById("ppw").value);render();}
+      catch(x){pe.textContent="كلمة سر الشركاء غير صحيحة"}};
+    return;
+  }
   const E=P.exp.filter(s=>s.items.length),Z=P.zaya;
-  const names={sum:"إجمالي المصروفات",det:"تفصيلي الكشوف",ana:"تحليلي المصاريف",zaya:"نسبة شركة زايا (تجميعي)"};
+  const names={sum:"إجمالي المصروفات",det:"تفصيلي الكشوف",ana:"تحليلي المصاريف",zaya:"نسبة شركة زايا (تجميعي)",close:"تقفيل الشركاء الشهري"};
   let h=`<div class="toolbar"><div class="pills">`+Object.keys(names).map(k=>`<button class="pill${ptab===k?" on":""}" data-p="${k}">${names[k]}</button>`).join("")+`</div></div>`;
   const all=E.flatMap(s=>s.items.map(i=>({...i,n:s.n,m:s.m})));
   const totPaid=sum(E,s=>s.paid);
@@ -330,8 +351,52 @@ function renderPartners(V){
       <div class="card" style="margin-top:12px"><h3>مكوّنات نسبة زايا</h3>${table([["الشهر",r=>mname(r.m)],["البيان",r=>esc(r.name)],["المبلغ",r=>fmt(r.amount),"n"]],Z.flatMap(m=>m.items.map(i=>({m:m.m,...i}))))}
       <p class="note">الأرقام من شيت «تقفيل شركاء».</p></div>`;
   }
+  if(ptab==="close"){
+    const CL=P.closing||[];
+    if(!CL.length){h+='<div class="card empty">لا توجد بيانات تقفيل بعد</div>';}
+    else{
+      const real=CL.filter(c=>c.bank&&c.bank.actual);
+      const cm=CL.find(c=>c.m===pcm)||(real.length?real[real.length-1]:CL[CL.length-1]);
+      const tr=a=>a.find(x=>x.total);
+      const numd=(a,k)=>a.map((x,i)=>({...x,i:i+1}));
+      const st=cm.sales.find(x=>x.total)||{contracts:0,downs:0,units:0};
+      const bal=tr(cm.proj),zs=tr(cm.zaya),bk=cm.bank||{};
+      const net=bk.net!=null?bk.net:null;
+      const fm=v=>v==null?"":fmt(v);
+      const stBox=cm=>{
+        const G=cm.proj_g||[],bl=tr(cm.proj);
+        if(!G.length)return "<h3>تسوية رصيد المشروع</h3>"+lineT(cm.proj);
+        let b=`<div class="scroll fit"><table class="st"><thead><tr class="ttl"><th colspan="4">تسوية رصيد المشروع</th></tr><tr class="hd"><th>م</th><th>بيان</th><th>المبلغ</th><th></th></tr></thead><tbody>`;
+        G.forEach((g,gi)=>{
+          const cls=g.kind==="exp"?"ex":"rv",n=g.items.length;
+          g.items.forEach((x,i)=>{
+            let last="";
+            if(g.kind==="exp"){ if(i===0) last=`<td class="sb n" rowspan="${n}">${fm(g.sub)}</td>`; }
+            else if(i===0) last=`<td class="em"></td>`;
+            else if(i===1) last=`<td class="sb n" rowspan="${n-1}">${fm(g.sub)}</td>`;
+            b+=`<tr class="${cls}"><td>${i+1}</td><td class="lb">${esc(x.label)}</td><td class="n">${fm(x.amount)}</td>${last}</tr>`;
+          });
+        });
+        if(bl)b+=`<tr class="bl"><td class="em"></td><td>الرصيد</td><td class="n">${fm(bl.amount)}</td><td class="em"></td></tr>`;
+        return b+"</tbody></table></div>";
+      };
+      const lineT=(items)=>table([["م",r=>r.total?"":r.i],["البيان",r=>esc(r.label)],["المبلغ",r=>fm(r.amount),"n"]],numd(items),r=>r.total?"tot":"");
+      h+=`<div class="bar"><label for="pcm">الشهر:</label><select id="pcm">`+CL.map(c=>`<option value="${c.m}"${c.m===cm.m?" selected":""}>${mname(c.m)}</option>`).join("")+`</select></div>`+
+        kpis([["إجمالي التعاقدات",fmt(st.contracts)+" ج.م"],["إجمالي المقدمات",fmt(st.downs)+" ج.م"],["عدد الوحدات",fmt(st.units)],["رصيد المشروع (الرصيد)",bal?fmt(bal.amount)+" ج.م":"-"],["نسبة شركة زايا",zs?fmt(zs.amount)+" ج.م":"-"],["الصافي (بنك)",net==null?"-":fmt(net)+" ج.م"]])+
+        `<div class="card" style="margin-bottom:12px"><h3>كشف تفصيلي – مشروع هوم – ${mname(cm.m)}</h3>${table([["م",r=>r.total?"":r.i],["البيان",r=>esc(r.label)],["إجمالي التعاقدات",r=>fmt(r.contracts),"n"],["إجمالي المقدمات",r=>fmt(r.downs),"n"],["عدد الوحدات",r=>fmt(r.units),"n"]],numd(cm.sales),r=>r.total?"tot":"")}</div>
+         <div class="grid" style="grid-template-columns:1fr 1fr"><div class="card">${stBox(cm)}</div>
+         <div class="card"><h3>تسوية نسبة شركة زايا</h3>${lineT(cm.zaya)}</div></div>
+         <div class="card" style="margin-bottom:12px"><h3>تسوية حساب المشروع في البنك – ${mname(cm.m)}</h3>`+
+        (cm.bank_items.length?lineT(cm.bank_items):
+          `<div class="grid" style="grid-template-columns:1fr 1fr"><div><div class="sec">الإيرادات</div>${lineT(cm.rev.concat(bk.rev_total!=null?[{label:"إجمالي الإيرادات",amount:bk.rev_total,total:true}]:[]))}</div>
+            <div><div class="sec">المصروفات</div>${lineT(cm.exp.concat(bk.exp_total!=null?[{label:"إجمالي المصروفات",amount:bk.exp_total,total:true}]:[]))}</div></div>`)+
+        kpis([["رصيد البنك (محسوب)",bk.calc!=null?fmt(bk.calc)+" ج.م":"-"],[esc(bk.actual_label||"رصيد البنك الفعلي"),bk.actual!=null?fmt(bk.actual)+" ج.م":"-"],["الصافي",net==null?"-":fmt(net)+" ج.م"]])+`</div>
+         <div class="card"><h3>ملخص كل الشهور</h3>${table([["الشهر",r=>mname(r.m)],["إجمالي التعاقدات",r=>{const s=r.sales.find(x=>x.total);return fmt(s?s.contracts:0)},"n"],["الوحدات",r=>{const s=r.sales.find(x=>x.total);return fmt(s?s.units:0)},"n"],["رصيد المشروع",r=>{const b=tr(r.proj);return b?fmt(b.amount):"-"},"n"],["نسبة زايا",r=>{const z=tr(r.zaya);return z?fmt(z.amount):"-"},"n"],["رصيد البنك الفعلي",r=>r.bank&&r.bank.actual?fmt(r.bank.actual):"-","n"],["الصافي",r=>r.bank&&r.bank.net!=null?fmt(r.bank.net):"-","n"]],CL.slice().reverse())}</div>`;
+    }
+  }
   V.innerHTML=h;
   V.querySelectorAll(".pill").forEach(b=>b.onclick=()=>{ptab=b.dataset.p;render()});
+  const pc=document.getElementById("pcm");if(pc)pc.onchange=e=>{pcm=e.target.value;render()};
   const ps=document.getElementById("ps");if(ps)ps.onchange=e=>{pstmt=e.target.value;render()};
   const catCols=["#1f7a73","#5c7a2b","#c2410c","#7a5c1f","#3b5b8c","#8c3b6e","#4f4f4f","#b8860b","#2e8b57"];
   if(ptab==="sum"){
