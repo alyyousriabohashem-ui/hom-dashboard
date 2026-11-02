@@ -65,6 +65,7 @@ table.st th,table.st td{border:0;border-bottom:1px solid var(--line);background:
 table.st th{position:static}
 table.st .ttl th{font-size:15px;font-weight:700;color:inherit;border-bottom:0}
 table.st td.sb{font-weight:700}
+table.st tr.tot td{background:rgba(232,178,11,.18);font-weight:700;border-bottom:1px solid var(--line)}
 table.st td.em{border-color:transparent}
 table.st tr.bl td{font-weight:700;border-bottom:0}
 .toolbar{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
@@ -371,21 +372,19 @@ function renderPartners(V){
             b+=`<tr class="${cls}"><td>${i+1}</td><td>${esc(x.label)}</td><td class="n">${fm(x.amount)}</td>${last}</tr>`;
           });
         });
-        if(bl)b+=`<tr class="bl"><td class="em"></td><td>الرصيد</td><td class="n">${fm(bl.amount)}</td><td class="em"></td></tr>`;
+        if(bl)b+=`<tr class="tot"><td></td><td>الرصيد</td><td class="n">${fm(bl.amount)}</td><td></td></tr>`;
         return b+"</tbody></table></div>";
       };
       const lineT=(items)=>table([["م",r=>r.total?"":r.i],["البيان",r=>esc(r.label)],["المبلغ",r=>fm(r.amount),"n"]],numd(items),r=>r.total?"tot":"");
       h+=`<div class="bar"><label for="pcm">الشهر:</label><select id="pcm">`+CL.map(c=>`<option value="${c.m}"${c.m===cm.m?" selected":""}>${mname(c.m)}</option>`).join("")+`</select></div>`+
-        kpis([["إجمالي التعاقدات",fmt(st.contracts)+" ج.م"],["إجمالي المقدمات",fmt(st.downs)+" ج.م"],["عدد الوحدات",fmt(st.units)],["رصيد المشروع (الرصيد)",bal?fmt(bal.amount)+" ج.م":"-"],["نسبة شركة زايا",zs?fmt(zs.amount)+" ج.م":"-"],["الصافي (بنك)",net==null?"-":fmt(net)+" ج.م"]])+
+        kpis([["إجمالي التعاقدات",fmt(st.contracts)+" ج.م"],["إجمالي المقدمات",fmt(st.downs)+" ج.م"],["عدد الوحدات",fmt(st.units)],["رصيد المشروع (الرصيد)",bal?fmt(bal.amount)+" ج.م":"-"],["نسبة شركة زايا",zs?fmt(zs.amount)+" ج.م":"-"],["رصيد البنك",bk.calc!=null?fmt(bk.calc)+" ج.م":"-"]])+
         `<div class="card" style="margin-bottom:12px"><h3>كشف تفصيلي – مشروع هوم – ${mname(cm.m)}</h3>${table([["م",r=>r.total?"":r.i],["البيان",r=>esc(r.label)],["إجمالي التعاقدات",r=>fmt(r.contracts),"n"],["إجمالي المقدمات",r=>fmt(r.downs),"n"],["عدد الوحدات",r=>fmt(r.units),"n"]],numd(cm.sales),r=>r.total?"tot":"")}</div>
          <div class="grid" style="grid-template-columns:1fr 1fr"><div class="card">${stBox(cm)}</div>
          <div class="card"><h3>تسوية نسبة شركة زايا</h3>${lineT(cm.zaya)}</div></div>
          <div class="card" style="margin-bottom:12px"><h3>تسوية حساب المشروع في البنك – ${mname(cm.m)}</h3>`+
         (cm.bank_items.length?lineT(cm.bank_items):
           `<div class="grid" style="grid-template-columns:1fr 1fr"><div><div class="sec">الإيرادات</div>${lineT(cm.rev.concat(bk.rev_total!=null?[{label:"إجمالي الإيرادات",amount:bk.rev_total,total:true}]:[]))}</div>
-            <div><div class="sec">المصروفات</div>${lineT(cm.exp.concat(bk.exp_total!=null?[{label:"إجمالي المصروفات",amount:bk.exp_total,total:true}]:[]))}</div></div>`)+
-        kpis([["رصيد البنك (محسوب)",bk.calc!=null?fmt(bk.calc)+" ج.م":"-"],[esc(bk.actual_label||"رصيد البنك الفعلي"),bk.actual!=null?fmt(bk.actual)+" ج.م":"-"],["الصافي",net==null?"-":fmt(net)+" ج.م"]])+`</div>
-         <div class="card"><h3>ملخص كل الشهور</h3>${table([["الشهر",r=>mname(r.m)],["إجمالي التعاقدات",r=>{const s=r.sales.find(x=>x.total);return fmt(s?s.contracts:0)},"n"],["الوحدات",r=>{const s=r.sales.find(x=>x.total);return fmt(s?s.units:0)},"n"],["رصيد المشروع",r=>{const b=tr(r.proj);return b?fmt(b.amount):"-"},"n"],["نسبة زايا",r=>{const z=tr(r.zaya);return z?fmt(z.amount):"-"},"n"],["رصيد البنك الفعلي",r=>r.bank&&r.bank.actual?fmt(r.bank.actual):"-","n"],["الصافي",r=>r.bank&&r.bank.net!=null?fmt(r.bank.net):"-","n"]],CL.slice().reverse())}</div>`;
+            <div><div class="sec">المصروفات</div>${lineT(cm.exp.concat(bk.exp_total!=null?[{label:"إجمالي المصروفات",amount:bk.exp_total,total:true}]:[]))}</div></div>`)+kpis([["رصيد البنك (محسوب)",bk.calc!=null?fmt(bk.calc)+" ج.م":"-"]])+`</div>`;
     }
   }
   V.innerHTML=h;
