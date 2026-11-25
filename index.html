@@ -6,9 +6,9 @@
 <title>داشبورد مشروع هوم</title>
 <script src="chart.umd.min.js"></script>
 <style>
-:root{--bg:#e8b20b;--card:#ffffff;--ink:#1a1a1a;--mute:#6b6044;--line:#f0e8d0;--shadow:0 1px 2px rgba(70,50,0,.06),0 10px 28px rgba(70,50,0,.09);--teal:#1f7a73;--teal-lo:rgba(31,122,115,.32);--olive:#5c7a2b;--late:#c2410c;--late-lo:rgba(194,65,12,.32);color-scheme:light}
+:root{--bg:#e8b20b;--card:#fffaf0;--ink:#1a1a1a;--mute:#5d5236;--line:#e7dcc0;--teal:#1f7a73;--teal-lo:rgba(31,122,115,.32);--olive:#5c7a2b;--late:#c2410c;--late-lo:rgba(194,65,12,.32);color-scheme:light}
 *{box-sizing:border-box}
-body{margin:0;background:linear-gradient(rgba(255,246,214,.62),rgba(255,246,214,.5)),var(--bg) url(paint.jpg) 0 0/1456px auto;color:var(--ink);font-family:"Segoe UI",Tahoma,"Noto Sans Arabic",sans-serif;line-height:1.5}
+body{margin:0;background:var(--bg) url(paint.jpg) 0 0/1456px auto;color:var(--ink);font-family:"Segoe UI",Tahoma,"Noto Sans Arabic",sans-serif;line-height:1.5}
 .wrap{max-width:1180px;margin:0 auto;padding-block:18px 28px;padding-inline:16px}
 header{display:flex;flex-wrap:wrap;gap:12px 20px;justify-content:space-between;align-items:center;margin-bottom:18px}
 .zaya{height:54px;width:auto;max-width:100%}
@@ -69,40 +69,6 @@ table.st tr.tot td{background:rgba(232,178,11,.18);font-weight:700;border-bottom
 table.st td.em{border-color:transparent}
 table.st tr.bl td{font-weight:700;border-bottom:0}
 .toolbar{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
-
-/* ---- تحسين الشكل: أصفر هادي + كروت أنظف ---- */
-h1{font-size:26px;font-weight:800;letter-spacing:-.2px}
-.kpi,.card{border:0;border-radius:16px;box-shadow:var(--shadow);padding:16px 18px}
-.kpi{position:relative;overflow:hidden}
-.kpi::before{content:"";position:absolute;inset-block:0;inset-inline-start:0;width:5px;background:var(--bg)}
-.kpi .l{font-size:12.5px;letter-spacing:.2px}
-.kpi .v{font-size:28px;font-weight:800;margin-top:4px;letter-spacing:-.3px}
-.kpi.sub{background:rgba(255,255,255,.78)}
-.card h3{font-size:16px;font-weight:800;margin-bottom:12px}
-.tabs{background:rgba(255,255,255,.55);border:0;border-radius:999px;padding:5px;gap:4px;margin-bottom:18px;box-shadow:0 1px 2px rgba(70,50,0,.08)}
-.tab{border-radius:999px;border-bottom:0;margin-bottom:0;padding:9px 18px}
-.tab.on{background:var(--ink);color:#fff;border-color:transparent}
-.pill{background:rgba(255,255,255,.7);border-color:transparent}
-select,.ms summary{border-radius:10px;border-color:transparent;box-shadow:0 1px 2px rgba(70,50,0,.1)}
-th{font-size:12.5px}
-tr:hover td{background:rgba(232,178,11,.07)}
-tr.tot td{background:rgba(232,178,11,.22)}
-.lock{box-shadow:var(--shadow)}
-/* ---- شريط المؤشرات الرئيسي ---- */
-.hero{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px}
-@media(max-width:900px){.hero{grid-template-columns:repeat(2,1fr)}}
-.hero[hidden]{display:none}
-.hero{grid-template-columns:repeat(4,minmax(0,1fr))}
-@media(max-width:900px){.hero{grid-template-columns:repeat(2,minmax(0,1fr))}}
-
-.hc{background:#fff;border-radius:18px;box-shadow:var(--shadow);padding:14px 16px 10px;border-top:5px solid var(--bg);min-width:0}
-.hc .hl{font-size:12.5px;color:var(--mute);font-weight:600}
-.hc .hv{font-size:30px;font-weight:800;line-height:1.15;margin:4px 0 2px;font-variant-numeric:tabular-nums;letter-spacing:-.4px}
-.hc .hv small{font-size:13px;font-weight:600;color:var(--mute);margin-inline-start:4px}
-.hc .hs{font-size:12.5px;color:var(--mute);min-height:18px}
-.hc .up{color:#1b7a3a;font-weight:700}.hc .dn{color:var(--late);font-weight:700}
-.hc svg{display:block;width:100%;height:40px;margin-top:6px}
-@media(max-width:600px){.hc .hv{font-size:21px}.hc .hv small{display:none}.hc{padding:12px 12px 8px}.kpi .v{font-size:23px}.tabs{margin-inline:-4px}}
 </style>
 </head>
 <body>
@@ -119,7 +85,6 @@ tr.tot td{background:rgba(232,178,11,.22)}
   <button class="tab" data-t="sales">المبيعات</button>
   <button class="tab" data-t="partners">الشركاء</button>
 </div>
-<div class="hero" id="hero" hidden></div>
 <div class="bar" id="bar">
   <span id="yearBox"><label for="year">السنة:</label> <select id="year"></select></span>
   <span><label for="mon">الشهر:</label> <select id="mon"></select></span>
@@ -196,44 +161,11 @@ function table(cols,rows,rowCls){
 }
 const byDate=(a,k)=>a.slice().sort((x,y)=>y[k].localeCompare(x[k]));
 
-
-/* =================== شريط المؤشرات الرئيسي =================== */
-function spark(vals,color){
-  const n=vals.length;if(n<2)return"";const mx=Math.max(...vals),mn=Math.min(...vals,0),rg=(mx-mn)||1,W=200,H=40,p=3;
-  const pts=vals.map((v,i)=>[(i/(n-1))*(W-2*p)+p,H-p-((v-mn)/rg)*(H-2*p-4)]);
-  const line=pts.map((q,i)=>(i?"L":"M")+q[0].toFixed(1)+" "+q[1].toFixed(1)).join(" ");
-  const area=line+` L${pts[n-1][0].toFixed(1)} ${H} L${pts[0][0].toFixed(1)} ${H} Z`;
-  const l=pts[n-1];
-  return `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" aria-hidden="true"><path d="${area}" fill="${color}" opacity=".14"/><path d="${line}" fill="none" stroke="${color}" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round" vector-effect="non-scaling-stroke"/></svg>`;
-}
-function monthsBack(n,end){const o=[];let y=+end.slice(0,4),m=+end.slice(5);for(let i=0;i<n;i++){o.unshift(y+"-"+String(m).padStart(2,"0"));m--;if(m<1){m=12;y--}}return o}
-function monthsFwd(n,start){const o=[];let y=+start.slice(0,4),m=+start.slice(5);for(let i=0;i<n;i++){o.push(y+"-"+String(m).padStart(2,"0"));m++;if(m>12){m=1;y++}}return o}
-function renderHero(){
-  const H=document.getElementById("hero");
-  if(!D||tab==="partners"){H.hidden=true;return}
-  const coll=[...D.installments.filter(x=>x.kind==="قسط"||x.kind==="قسط0"||x.kind==="جراج"),...D.downs];
-  const cm=group(coll,"m",x=>x.amount),back=monthsBack(12,CUR);
-  const have=Object.keys(cm).filter(m=>m<=CUR&&cm[m]).sort(),LM=cm[CUR]?CUR:(have[have.length-1]||CUR);
-  const pm=monthsBack(2,LM)[0],total=sum(coll,x=>x.amount),thisM=cm[LM]||0,prevM=cm[pm]||0;
-  let cum=0;const allM=[...new Set(coll.map(x=>x.m))].sort();const cumS=allM.map(m=>cum+=cm[m]||0).slice(-12);
-  const dl=prevM?((thisM-prevM)/prevM*100):null;
-  const rem=D.rem.filter(x=>!isSep(x)),rm=group(rem,"m",x=>x.a),remTot=sum(rem,x=>x.a),late=sum(rem.filter(x=>x.m<CUR),x=>x.a);
-  const sm=group(D.sales,"m",x=>x.value),salesTot=sum(D.sales,x=>x.value);
-  const card=(l,v,s,sp)=>`<div class="hc"><div class="hl">${l}</div><div class="hv">${v}<small>ج.م</small></div><div class="hs">${s}</div>${sp}</div>`;
-  H.innerHTML=
-    card("إجمالي المتحصل من المشروع",fmt(total),"أقساط + دفعات التعاقد + جراج",spark(cumS,C.teal))+
-    card((LM===CUR?"تحصيل ":"آخر شهر: ")+mname(LM),fmt(thisM),dl==null?"لا يوجد شهر سابق للمقارنة":`<span class="${dl>=0?"up":"dn"}">${dl>=0?"▲":"▼"} ${Math.abs(dl).toFixed(0)}%</span> عن الشهر السابق`,spark(monthsBack(12,LM).map(m=>cm[m]||0),C.olive))+
-    card("إجمالي المتبقي (الأقساط)",fmt(remTot),late?`منها متأخرات <span class="dn">${fmt(late)}</span>`:"لا توجد متأخرات",spark(monthsFwd(12,CUR).map(m=>rm[m]||0),C.late))+
-    card("إجمالي المبيعات",fmt(salesTot),fmt(D.sales.length)+" وحدة",spark(monthsBack(12,CUR).map(m=>sm[m]||0),"#b8860b"));
-  H.hidden=false;
-}
-
 function render(){
   charts.forEach(c=>c.destroy());charts=[];
   document.querySelectorAll(".tab").forEach(b=>b.classList.toggle("on",b.dataset.t===tab));
   const V=document.getElementById("view");
   if(tab!=="partners")P=null;   // الشركاء يطلب كلمة السر كل مرة تدخل فيها التاب
-  renderHero();
   document.getElementById("yearBox").hidden=tab!=="rem";
   document.getElementById("bar").hidden=(tab==="partners"||tab==="proj");
   if(tab==="proj"){document.getElementById("yearBox").hidden=true;renderProject(V);return;}
